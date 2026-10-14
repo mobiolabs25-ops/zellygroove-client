@@ -1,0 +1,32 @@
+[project]
+name = "zellygroove-client"
+version = "0.1.0"
+description = "Zelly Groove music creation through MCP, CLI and agent skills"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = "MIT"
+authors = [{name = "Mobio Labs"}]
+dependencies = ["httpx>=0.27,<1", "mcp>=2.3,<3"]
+
+[project.urls]
+Homepage = "https://zellygroove.com"
+Repository = "https://github.com/mobiolabs25-ops/zellygroove-client"
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+
+[project.scripts]
+zellygroove = "zellygroove_client.connect:main"
+zellygroove-mcp = "zellygroove_client.mcp_server:main"
+artist-tools = "zellygroove_client.connect:main"
+artist-mcp = "zellygroove_client.mcp_server:main"
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zellygroove_client"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
