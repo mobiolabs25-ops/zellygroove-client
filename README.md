@@ -15,7 +15,7 @@ Claude Code, Codex와 함께 음악을 만들고, 작업 상태와 남은 크레
 Python 3.11–3.12, Git, [uv](https://docs.astral.sh/uv/getting-started/installation/)가 필요합니다.
 
 ```sh
-uv tool install --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.1.0 zellygroove-client
+uv tool install --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.2.0 zellygroove-client
 zellygroove login
 zellygroove setup --client auto
 ```
@@ -41,12 +41,44 @@ zellygroove get_job job_id=<반환된_ID>
 호출 제한(429)을 받으면 안내된 대기 시간 뒤에 조회하세요. 클라이언트는 자동으로 재시도하지 않습니다.
 MIDI·허밍 업로드, 고급 편집, 다운로드와 결제 관리는 웹 스튜디오를 이용하세요.
 
+## 아티스트와 대화하기 (Groovy Pro)
+
+공개 HTTPS API에 **본인 PAT**로 연결합니다. SSH 터널이나 서버 운영 계정은 필요하지 않습니다.
+`list_artists`에서 접근 가능한 아티스트 ID를 확인하고 전용 연결을 등록하세요.
+
+```sh
+zellygroove setup --client codex --artist ines_vauclair
+# Claude Code: --client claude
+```
+
+기존 일반 연결을 보존하고 `zellygroove_ines_vauclair`라는 별도 연결에 `STUDIO_ARTIST_ID`를 설정합니다.
+에이전트를 다시 시작한 뒤 “Inès와 대화하자”라고 말하면 됩니다. 직접 등록하는 경우 위 MCP 환경에
+`STUDIO_ARTIST_ID=ines_vauclair`를 추가합니다. CLI도 이 변수가 있으면 같은 아티스트 도구만 제공합니다.
+
+- Claude/Codex의 현재 대화 모델이 페르소나와 이력을 읽고 답합니다. 로컬 모델을 별도로 내려받는 기능은 아닙니다.
+- 대화는 `Inès >`처럼 표시하고 실제 사용자 메시지와 답변을 서버의 개인 이력에 저장합니다. 웹에서도 이어볼 수 있습니다.
+- 해당 아티스트의 곡·재킷·발매 기록을 조회하고 추천하거나, 가사·악기·스타일을 함께 설계합니다.
+- 완성된 초안을 검토하고 사용자가 음원 생성을 요청하면 생성합니다. 대화 초안을 저장하는 것만으로 음원을 만들지 않습니다.
+- 외부 모델 대화의 Studio 대화 크레딧은 0이며, Claude/Codex 자체 이용료와 음원 생성 크레딧은 별도입니다.
+- 기억은 요청할 때 개인 저장소에 저장·수정·삭제합니다. 다른 사용자에게 공유할 내용은 Wiki 화면에서 직접 선택합니다.
+- Free/Groovy의 웹 Zelly 대화와 별개로, 아티스트 대화·기억·전용 MCP는 Groovy Pro와 해당 아티스트 접근 권한이 필요합니다.
+
+`STUDIO_ARTIST_ID`는 이 MCP 연결의 도구 범위를 고정합니다. **PAT 자체를 특정 아티스트에 한정하는 토큰 scope는 아닙니다.**
+최종 접근 제어는 API가 PAT 소유자의 구독·멤버십·대화 소유권으로 검사합니다. 공유 대화에서도 개인 이력은 다른 사용자에게 공개되지 않습니다.
+쓰기 요청은 요청 ID로 중복 저장을 막고, 이력 변경 충돌은 409, 호출 한도는 429로 반환합니다.
+
+### v0.1.0에서 업데이트
+
+고정 버전을 설치했거나 MCP 설정의 `--from`에 `@v0.1.0`이 있으면 `@v0.2.0`으로 바꾸세요.
+`setup`은 기존 연결과 수정된 스킬을 자동 덮어쓰지 않습니다. 기존 사용자 설정을 검토하고 보존하세요.
+토큰을 새로 발급할 필요는 없으며, 기존 유효한 PAT를 그대로 사용할 수 있습니다.
+
 ## AI 에이전트용 연결 절차
 
 **사용자가 이 README 링크와 함께 연동을 요청하면 다음 순서로 실행하세요.**
 
 1. `uv`, `git`, `claude`, `codex` 설치 여부를 확인합니다. 사용자가 지정한 클라이언트를 우선하고, 지정하지 않으면 설치된 클라이언트를 선택합니다. 빠진 프로그램은 공식 설치 안내에 따라 준비합니다.
-2. 위 `uv tool install` 명령으로 고정 버전 `v0.1.0`을 설치합니다. `uv tool update-shell`이 필요하면 안내하고, 현재 실행에서는 `uv tool dir --bin`으로 실행 파일 위치를 확인합니다.
+2. 위 `uv tool install` 명령으로 고정 버전 `v0.2.0`을 설치합니다. `uv tool update-shell`이 필요하면 안내하고, 현재 실행에서는 `uv tool dir --bin`으로 실행 파일 위치를 확인합니다.
 3. `zellygroove setup --client claude|codex|auto`를 실행합니다. 기존 Zelly Groove/Mobio Studio 연결은 자동 덮어쓰지 않습니다. 기존 설정이 있다면 그 항목만 검토하며 다른 MCP 설정은 보존합니다.
 4. **토큰을 채팅으로 요청하거나 출력하지 마세요.** 저장된 토큰이 없다면 사용자에게 본인 터미널에서 `zellygroove login`을 한 번 실행하도록 안내합니다. 로그인 웹 화면과 토큰 발급은 사용자 인증이 필요합니다.
 5. `zellygroove studio_status`, `zellygroove studio_usage`, `zellygroove studio_credits`로 확인합니다. 401·403이면 서비스가 반환한 인증·권한 오류를 보고하며, 다른 자격증명으로 우회하지 않습니다. 아직 운영 서버에 반영되지 않은 기능은 설치 성공과 구분합니다.

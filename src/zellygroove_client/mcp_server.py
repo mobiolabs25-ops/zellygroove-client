@@ -750,11 +750,19 @@ def build_server(tools: StudioTools) -> MCPServer:
 
 
 def main() -> int:
+    import os
     import sys
     from .auth import client_from_env
     try:
         with client_from_env() as client:
-            build_server(StudioTools(client)).run("stdio")
+            tools = StudioTools(client)
+            artist_id = os.environ.get("STUDIO_ARTIST_ID", "").strip()
+            if artist_id:
+                from .artist_mcp import build_artist_server
+                server = build_artist_server(tools, artist_id)
+            else:
+                server = build_server(tools)
+            server.run("stdio")
     except StudioError as error:
         print(str(error), file=sys.stderr)
         return 1

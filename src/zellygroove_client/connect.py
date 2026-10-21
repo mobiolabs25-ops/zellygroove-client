@@ -12,6 +12,7 @@ It talks to the studio at $STUDIO_URL, as whoever $STUDIO_TOKEN is: an access to
 
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -49,7 +50,13 @@ def _value(text: str):
 
 def run(argv: list[str], tools: StudioTools, out=None, home: Path | None = None) -> int:
     out = out or sys.stdout
-    listed = {tool.name: tool for tool in asyncio.run(build_server(tools).list_tools())}
+    artist_id = os.environ.get("STUDIO_ARTIST_ID", "").strip()
+    if artist_id:
+        from .artist_mcp import ArtistMCP, build_artist_server
+        server, surface = build_artist_server(tools, artist_id), ArtistMCP(tools, artist_id)
+    else:
+        server, surface = build_server(tools), tools
+    listed = {tool.name: tool for tool in asyncio.run(server.list_tools())}
     if not argv or argv[0] in ("tools", "-h", "--help"):
         for name, tool in listed.items():
             asked = ", ".join(f"{key}{'' if key in (tool.input_schema.get('required') or []) else '?'}" for key in tool.input_schema.get("properties") or {})
@@ -72,7 +79,7 @@ def run(argv: list[str], tools: StudioTools, out=None, home: Path | None = None)
         unknown = set(asked) - set(listed[name].input_schema.get("properties") or {})
         if unknown:
             raise StudioError(f"{name} 에 없는 항목입니다: {', '.join(sorted(unknown))}")
-        answer = getattr(tools, ALIASES.get(name, name))(**asked)
+        answer = getattr(surface, ALIASES.get(name, name))(**asked)
     except (StudioError, TypeError) as error:
         print(str(error), file=sys.stderr)
         return 1
