@@ -15,7 +15,7 @@ Claude Code, Codex와 함께 음악을 만들고, 작업 상태와 남은 크레
 Python 3.11–3.12, Git, [uv](https://docs.astral.sh/uv/getting-started/installation/)가 필요합니다.
 
 ```sh
-uv tool install --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.2.0 zellygroove-client
+uv tool install --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.2.1 zellygroove-client
 zellygroove login
 zellygroove setup --client auto
 ```
@@ -69,7 +69,7 @@ zellygroove setup --client codex --artist ines_vauclair
 
 ### v0.1.0에서 업데이트
 
-고정 버전을 설치했거나 MCP 설정의 `--from`에 `@v0.1.0`이 있으면 `@v0.2.0`으로 바꾸세요.
+고정 버전을 설치했거나 MCP 설정의 `--from`에 `@v0.1.0`이 있으면 `@v0.2.1`으로 바꾸세요.
 `setup`은 기존 연결과 수정된 스킬을 자동 덮어쓰지 않습니다. 기존 사용자 설정을 검토하고 보존하세요.
 토큰을 새로 발급할 필요는 없으며, 기존 유효한 PAT를 그대로 사용할 수 있습니다.
 
@@ -78,7 +78,7 @@ zellygroove setup --client codex --artist ines_vauclair
 **사용자가 이 README 링크와 함께 연동을 요청하면 다음 순서로 실행하세요.**
 
 1. `uv`, `git`, `claude`, `codex` 설치 여부를 확인합니다. 사용자가 지정한 클라이언트를 우선하고, 지정하지 않으면 설치된 클라이언트를 선택합니다. 빠진 프로그램은 공식 설치 안내에 따라 준비합니다.
-2. 위 `uv tool install` 명령으로 고정 버전 `v0.2.0`을 설치합니다. `uv tool update-shell`이 필요하면 안내하고, 현재 실행에서는 `uv tool dir --bin`으로 실행 파일 위치를 확인합니다.
+2. 위 `uv tool install` 명령으로 고정 버전 `v0.2.1`을 설치합니다. `uv tool update-shell`이 필요하면 안내하고, 현재 실행에서는 `uv tool dir --bin`으로 실행 파일 위치를 확인합니다.
 3. `zellygroove setup --client claude|codex|auto`를 실행합니다. 기존 Zelly Groove/Mobio Studio 연결은 자동 덮어쓰지 않습니다. 기존 설정이 있다면 그 항목만 검토하며 다른 MCP 설정은 보존합니다.
 4. **토큰을 채팅으로 요청하거나 출력하지 마세요.** 저장된 토큰이 없다면 사용자에게 본인 터미널에서 `zellygroove login`을 한 번 실행하도록 안내합니다. 로그인 웹 화면과 토큰 발급은 사용자 인증이 필요합니다.
 5. `zellygroove studio_status`, `zellygroove studio_usage`, `zellygroove studio_credits`로 확인합니다. 401·403이면 서비스가 반환한 인증·권한 오류를 보고하며, 다른 자격증명으로 우회하지 않습니다. 아직 운영 서버에 반영되지 않은 기능은 설치 성공과 구분합니다.
@@ -112,7 +112,7 @@ Claude Code·Codex CLI 외의 stdio MCP 클라이언트에서는 다음처럼 �
 코드: [MIT](LICENSE). 로고·서비스명: [브랜드 사용 안내](assets/NOTICE.md).
 
 
-### 완성 음원 미리듣기 링크 (다음 서버 버전 필요)
+### 완성 음원 미리듣기 링크 (v0.2.1)
 
 생성 요청 시 `share_preview=true`를 선택하면 완성 뒤 1시간 동안 로그인 없이 들을 수 있는 링크가 준비됩니다.
 즉시 반환되는 `job_url`로 작업을 열거나, `read_conversation_song`으로 `preview_url`과 만료 시각을 확인하세요.

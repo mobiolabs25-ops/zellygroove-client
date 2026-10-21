@@ -7,7 +7,7 @@ import subprocess
 from .auth import service_url, token_path
 from .mcp_server import StudioError
 
-SOURCE = "git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.2.0"
+SOURCE = "git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.2.1"
 SERVER_NAME = "zellygroove"
 
 
