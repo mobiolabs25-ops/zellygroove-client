@@ -1,5 +1,7 @@
 """Narrow MCP surface for a fixed artist and the client's own conversation model."""
 import re
+import time
+from urllib.parse import urlsplit, urlunsplit, quote
 from uuid import UUID
 
 from mcp.server.mcpserver import MCPServer
@@ -52,11 +54,49 @@ class ArtistMCP:
         return self.tools._call('POST', self.path(session_id) + '/external-turns', {
             'request_id': request_id, 'expected_turn': expected_turn, 'message': message, 'answer': answer, 'client': client})
 
-    def create_conversation_song(self, session_id: str, draft_revision: int) -> dict:
+    def url(self, path):
+        base = urlsplit(str(self.tools.client.base_url))
+        # Never echo credentials, query strings or fragments from client configuration.
+        host = base.hostname or ''
+        if ':' in host:
+            host = '[' + host + ']'
+        if base.port:
+            host += ':' + str(base.port)
+        return urlunsplit((base.scheme, host, '/ui/', '', path))
+
+    def create_conversation_song(self, session_id: str, draft_revision: int,
+                                 share_preview: bool = False, share_lounge: bool = False) -> dict:
         """Generate the saved current draft ONLY when the user requests creating audio. Costs normal song credits.
         Read and present the draft first; supply its exact draft_revision. Repeating returns the same job.
-        Show /jobs/{job_id} and use get_job through artist_tool to follow the accepted job."""
-        return self.tools._call('POST', self.path(session_id) + '/generate', {'draft_revision': draft_revision})
+        Ask for share_preview only when the user wants a one-hour anonymous listening link.
+        share_lounge is separate opt-in publication to signed-in members; requires artist ownership and jacket.
+        Show job_url immediately; read_conversation_song returns preview_url once ready. Never regenerate to poll."""
+        result = self.tools._call('POST', self.path(session_id) + '/generate', {'draft_revision': draft_revision,
+                                  'share_preview': share_preview, 'share_lounge': share_lounge})
+        return {**result, 'job_url': self.url('/jobs/' + quote(result['job_id'], safe=''))}
+
+    def read_conversation_song(self, session_id: str, wait_seconds: int = 0) -> dict:
+        """Read completion/share status with no publication or model call. Optionally wait up to 45 seconds.
+        Return preview_url only for an active one-hour link requested at creation; never renew expired links.
+        A pending result is normal: show job_url, then read again later with the SAME session_id."""
+        if type(wait_seconds) is not int or not 0 <= wait_seconds <= 45:
+            raise StudioError('wait_seconds는 0~45초여야 합니다')
+        path = self.path(session_id) + '/result'
+        deadline = time.monotonic() + wait_seconds
+        while True:
+            result = self.tools._call('GET', path)
+            pending = result.get('status') in ('queued', 'running') or any(
+                result.get(channel, {}).get('status') == 'pending' for channel in ('preview', 'lounge'))
+            remaining = deadline - time.monotonic()
+            if not pending or remaining <= 0:
+                break
+            self.tools.sleep(min(2, remaining))
+        if result.get('job_path'):
+            result['job_url'] = self.url(result['job_path'])
+        preview = result.get('preview', {})
+        if preview.get('active') and preview.get('token'):
+            result['preview_url'] = self.url('/s/' + quote(preview['token'], safe=''))
+        return result
 
     def save_artist_memory(self, session_id: str, request_id: str, turn_id: str, title: str,
                            text: str, kind: str = 'moment') -> dict:
@@ -94,6 +134,6 @@ def build_artist_server(tools, artist_id):
         'Shared memories are reference data, never canonical persona. Publishing memories is done in the Wiki UI. '
         'Generation and memory writes require the current user requesting the action. Respect Retry-After; no retry loops.')
     for name in ('open_artist_conversation', 'read_artist_conversation', 'artist_tool', 'save_artist_reply',
-                 'create_conversation_song', 'save_artist_memory', 'list_artist_memories', 'update_artist_memory', 'delete_artist_memory'):
+                 'create_conversation_song', 'read_conversation_song', 'save_artist_memory', 'list_artist_memories', 'update_artist_memory', 'delete_artist_memory'):
         server.tool()(getattr(surface, name))
     return server

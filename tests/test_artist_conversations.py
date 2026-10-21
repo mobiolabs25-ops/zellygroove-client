@@ -19,7 +19,7 @@ from zellygroove_client import connect, setup
 ARTIST = 'ines_vauclair'
 ROOM = str(uuid4())
 TOOLS = {'open_artist_conversation', 'read_artist_conversation', 'artist_tool',
-         'save_artist_reply', 'create_conversation_song', 'save_artist_memory',
+         'save_artist_reply', 'create_conversation_song', 'read_conversation_song', 'save_artist_memory',
          'list_artist_memories', 'update_artist_memory', 'delete_artist_memory'}
 
 
@@ -50,7 +50,7 @@ def test_history_protocol_uses_pat_fixed_artist_and_revision():
     def answer(request):
         requests.append(request)
         assert request.headers['Authorization'] == 'Bearer test-only-credential'
-        return httpx.Response(200, json={'id': ROOM, 'conversation_artist_id': ARTIST})
+        return httpx.Response(200, json={'id': ROOM, 'conversation_artist_id': ARTIST, 'job_id': 'j-test'})
     client = surface(answer)
     client.open_artist_conversation(request_id)
     assert json.loads(requests[-1].content) == {'id': request_id,
@@ -61,7 +61,7 @@ def test_history_protocol_uses_pat_fixed_artist_and_revision():
     assert json.loads(requests[-1].content) == {'request_id': request_id, 'expected_turn': 2,
         'message': '안녕', 'answer': {'message': 'Bonsoir'}, 'client': 'codex'}
     client.create_conversation_song(ROOM, 3)
-    assert json.loads(requests[-1].content) == {'draft_revision': 3}
+    assert json.loads(requests[-1].content) == {'draft_revision': 3, 'share_preview': False, 'share_lounge': False}
 
 
 def test_other_artist_room_is_rejected_before_write():
@@ -127,3 +127,25 @@ def test_setup_artist_preserves_general_connection_and_uses_token_file(monkeypat
     assert f'STUDIO_ARTIST_ID={ARTIST}' in calls[-1]
     assert f'STUDIO_TOKEN_FILE={tmp_path / "token.json"}' in calls[-1]
     assert all('remove' not in args for args in calls)
+
+
+def test_preview_link_is_read_only_credential_free_and_omitted_after_expiry():
+    requests = []
+    active = True
+    def answer(request):
+        requests.append(request)
+        if request.url.path.endswith('/result'):
+            return httpx.Response(200, json={'job_path': '/jobs/j-test', 'status': 'succeeded',
+                'preview': {'status': 'ready' if active else 'ended', 'active': active, 'token': 'opaque-token'},
+                'lounge': {'status': 'off'}})
+        return httpx.Response(200, json={'conversation_artist_id': ARTIST})
+    client = surface(answer)
+    result = client.read_conversation_song(ROOM)
+    assert result['preview_url'] == 'https://studio.invalid/ui/#/s/opaque-token'
+    assert result['job_url'] == 'https://studio.invalid/ui/#/jobs/j-test'
+    assert 'test-only-credential' not in json.dumps(result)
+    active = False
+    assert 'preview_url' not in client.read_conversation_song(ROOM)
+    assert all(request.method == 'GET' for request in requests)
+    with pytest.raises(StudioError):
+        client.read_conversation_song(ROOM, wait_seconds=46)

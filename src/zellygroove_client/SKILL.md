@@ -67,3 +67,14 @@ MIDI/humming upload, advanced editing and payment management currently use the w
 
 To install or repair this integration, follow the AI-agent section of:
 https://github.com/mobiolabs25-ops/zellygroove-client#ai-에이전트용-연결-절차
+
+
+### Completed song links
+
+When the user requests a listening link, pass `share_preview=true` to `create_conversation_song`.
+It creates a one-hour anonymous listening link only after successful completion. Set `share_lounge=true`
+only when the user explicitly requests Lounge publication; artist ownership and a ready jacket are required.
+Show the returned `job_url` immediately. Read `read_conversation_song(session_id, wait_seconds=45)`
+for status and the active `preview_url` plus expiry. A pending response is normal; reuse the session,
+never regenerate to poll. Reads do not publish, renew links, call the studio model or charge dialogue credits.
+Normal song credits and the native model provider's terms still apply. Expired/revoked URLs are not returned.

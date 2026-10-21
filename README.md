@@ -110,3 +110,11 @@ Claude Code·Codex CLI 외의 stdio MCP 클라이언트에서는 다음처럼 �
 보안 문제를 발견하면 토큰이나 개인정보를 공개 이슈에 올리지 말고 [서비스 문의](https://zellygroove.com)로 알려 주세요.
 
 코드: [MIT](LICENSE). 로고·서비스명: [브랜드 사용 안내](assets/NOTICE.md).
+
+
+### 완성 음원 미리듣기 링크 (다음 서버 버전 필요)
+
+생성 요청 시 `share_preview=true`를 선택하면 완성 뒤 1시간 동안 로그인 없이 들을 수 있는 링크가 준비됩니다.
+즉시 반환되는 `job_url`로 작업을 열거나, `read_conversation_song`으로 `preview_url`과 만료 시각을 확인하세요.
+`share_lounge=true`는 별도 선택이며 아티스트 소유권과 재킷 조건을 검사합니다. 조회는 공유를 시작하거나 갱신하지 않습니다.
+서버의 `/api/song-agent/sessions/{id}/result` 지원과 함께 사용해야 합니다.
