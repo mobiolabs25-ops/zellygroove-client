@@ -23,6 +23,10 @@ SKILL_HOMES = {"claude": Path(".claude") / "skills", "codex": Path(".codex") / "
 ALIASES = {"studio_status": "status", "studio_usage": "usage", "studio_credits": "credits", "studio_plans": "plans", "studio_downloads": "downloads",
            "studio_guide": "guide"}   # tool name -> the StudioTools function it calls
 
+CAPABILITY_METHODS = {'studio_capabilities': 'discover', 'studio_action': 'action', 'studio_read_batch': 'batch'}
+WIKI_METHODS = {'list_musician_wiki_tabs': 'list_tabs', 'send_musician_wiki_command': 'send',
+                'get_musician_wiki_command_status': 'status'}
+
 from importlib.resources import files
 
 GUIDE = files("zellygroove_client").joinpath("SKILL.md").read_text(encoding="utf-8")
@@ -79,8 +83,15 @@ def run(argv: list[str], tools: StudioTools, out=None, home: Path | None = None)
         unknown = set(asked) - set(listed[name].input_schema.get("properties") or {})
         if unknown:
             raise StudioError(f"{name} 에 없는 항목입니다: {', '.join(sorted(unknown))}")
-        answer = getattr(surface, ALIASES.get(name, name))(**asked)
-    except (StudioError, TypeError) as error:
+        if name in CAPABILITY_METHODS:
+            from .mcp_actions_client import CapabilityClient
+            answer = getattr(CapabilityClient(tools, operator=False), CAPABILITY_METHODS[name])(**asked)
+        elif name in WIKI_METHODS:
+            from .wiki_control_client import WikiControlClient
+            answer = getattr(WikiControlClient(tools._call), WIKI_METHODS[name])(**asked)
+        else:
+            answer = getattr(surface, ALIASES.get(name, name))(**asked)
+    except (StudioError, TypeError, ValueError) as error:
         print(str(error), file=sys.stderr)
         return 1
     print(json.dumps(answer, ensure_ascii=False, indent=2), file=out)
