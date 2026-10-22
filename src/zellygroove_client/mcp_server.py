@@ -59,13 +59,14 @@ class StudioTools:
         if response.is_success:
             return data
         if isinstance(data, dict) and isinstance(data.get("errors"), dict):
-            raise StudioError("; ".join(f"{field}: {text}" for field, text in data["errors"].items()))
+            raise StudioError("; ".join(f"{field}: {text}" for field, text in data["errors"].items()),
+                              status_code=response.status_code)
         detail = data.get("detail") if isinstance(data, dict) else None
         message = str(detail or f"스튜디오가 요청을 거절했습니다 ({response.status_code})")
         after = response.headers.get("Retry-After", "")
         if response.status_code == 429 and after.isdigit() and len(after) <= 6:
             message += f" {after}초 뒤에 다시 조회하세요. 자동 재시도하지 않습니다."
-        raise StudioError(message)
+        raise StudioError(message, status_code=response.status_code)
 
     def status(self) -> dict:
         health = self._call("GET", "/api/health")
@@ -483,7 +484,7 @@ class StudioTools:
 
 
 def build_server(tools: StudioTools) -> MCPServer:
-    server = MCPServer("mobio-studio", instructions=INSTRUCTIONS)
+    server = MCPServer("zellygroove", instructions=INSTRUCTIONS)
     from .mcp_actions_client import CapabilityClient
     capabilities = CapabilityClient(tools, operator=False)
     from .wiki_control_client import WikiControlClient

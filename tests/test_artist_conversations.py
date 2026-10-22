@@ -64,6 +64,34 @@ def test_history_protocol_uses_pat_fixed_artist_and_revision():
     assert json.loads(requests[-1].content) == {'draft_revision': 3, 'share_preview': False, 'share_lounge': False}
 
 
+@pytest.mark.parametrize('count, expected', [(None, None), (1, 1), (2, 2), (3, 3)])
+def test_artist_generation_count_distinguishes_omission_from_explicit_choice(count, expected):
+    requests = []
+    def answer(request):
+        requests.append(request)
+        return httpx.Response(200, json={'conversation_artist_id': ARTIST, 'job_id': 'j-test'})
+    client = surface(answer)
+    options = {} if count is None else {'count': count}
+    client.create_conversation_song(ROOM, 3, **options)
+    body = json.loads(requests[-1].content)
+    assert body == {'draft_revision': 3, 'share_preview': False, 'share_lounge': False,
+                    **({} if expected is None else {'count': expected})}
+
+
+def test_artist_mcp_schema_and_call_forward_explicit_single_count():
+    requests = []
+    def answer(request):
+        requests.append(request)
+        return httpx.Response(200, json={'conversation_artist_id': ARTIST, 'job_id': 'j-test'})
+    tools = StudioTools(httpx.Client(base_url='https://studio.invalid', transport=httpx.MockTransport(answer)))
+    server = build_artist_server(tools, ARTIST)
+    tool = next(t for t in asyncio.run(server.list_tools()) if t.name == 'create_conversation_song')
+    assert 'count' in tool.input_schema['properties']
+    assert 'count' not in tool.input_schema.get('required', [])
+    asyncio.run(server.call_tool('create_conversation_song', {'session_id': ROOM, 'draft_revision': 3, 'count': 1}))
+    assert json.loads(requests[-1].content)['count'] == 1
+
+
 def test_other_artist_room_is_rejected_before_write():
     requests = []
     def answer(request):

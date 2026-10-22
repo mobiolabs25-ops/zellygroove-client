@@ -111,3 +111,41 @@ def test_rate_limit_reports_retry_after_without_automatic_requests(capsys):
     tools = StudioTools(httpx.Client(base_url="https://studio.test", transport=httpx.MockTransport(answer)))
     assert run(["studio_credits"], tools, io.StringIO()) == 1
     assert len(calls) == 1 and "60초" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('status, body', [(404, {'detail': 'missing'}), (410, {'errors': {'preview': 'expired'}})])
+def test_missing_or_expired_preview_manifest_falls_back_without_retry(status, body):
+    job_id = 'j-20261015-000000-abcdef'
+    calls = []
+    def answer(request):
+        calls.append(request.url.path)
+        if request.url.path == f'/api/jobs/{job_id}':
+            return httpx.Response(200, json={'status': 'running', 'candidates': [],
+                'events': [{'kind': 'preview_ready', 'data': {'stream': 'a' * 32}}]})
+        return httpx.Response(status, json=body)
+    tools = StudioTools(httpx.Client(base_url='https://studio.test', transport=httpx.MockTransport(answer)))
+    result = tools.get_job_preview(job_id)
+    assert result['state'] == 'unavailable' and result['available'] is False
+    assert result['url'] == f'https://studio.test/ui/#/jobs/{job_id}'
+    assert calls == [f'/api/jobs/{job_id}', f'/api/jobs/{job_id}/preview/{"a" * 32}']
+
+
+def test_preview_manifest_permission_refusal_propagates_without_retry():
+    job_id = 'j-20261015-000000-abcdef'
+    calls = []
+    def answer(request):
+        calls.append(request.url.path)
+        if request.url.path == f'/api/jobs/{job_id}':
+            return httpx.Response(200, json={'status': 'running', 'candidates': [],
+                'events': [{'kind': 'preview_ready', 'data': {'stream': 'a' * 32}}]})
+        return httpx.Response(403, json={'detail': 'forbidden'})
+    tools = StudioTools(httpx.Client(base_url='https://studio.test', transport=httpx.MockTransport(answer)))
+    with pytest.raises(StudioError, match='forbidden') as error:
+        tools.get_job_preview(job_id)
+    assert error.value.status_code == 403
+    assert len(calls) == 2
+
+
+def test_default_mcp_server_name_stays_zellygroove():
+    tools = StudioTools(httpx.Client(base_url='https://studio.test'))
+    assert build_server(tools).name == 'zellygroove'
