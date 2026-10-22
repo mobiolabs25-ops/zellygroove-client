@@ -132,8 +132,15 @@ def test_public_client_has_no_operator_methods_even_for_operator_credentials():
     names = {tool.name for tool in asyncio.run(build_server(tools).list_tools())}
     for name in ("publish_track", "build_site", "set_youtube_id", "preview_playlist", "preview_lounge", "import_scene", "draw_groove_scene"):
         assert name not in names and not hasattr(tools, name)
+    from zellygroove_client.mcp_actions_client import CapabilityClient
+    from zellygroove_client.wiki_control_client import WikiControlClient
     for name in names:
-        assert hasattr(tools, connect.ALIASES.get(name, name)), name
+        if name in connect.CAPABILITY_METHODS:
+            assert callable(getattr(CapabilityClient, connect.CAPABILITY_METHODS[name]))
+        elif name in connect.WIKI_METHODS:
+            assert callable(getattr(WikiControlClient, connect.WIKI_METHODS[name]))
+        else:
+            assert callable(getattr(tools, connect.ALIASES.get(name, name))), name
 
 
 def test_permission_refusal_is_reported_without_a_retry(capsys):

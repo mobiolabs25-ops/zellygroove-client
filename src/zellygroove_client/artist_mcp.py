@@ -65,15 +65,30 @@ class ArtistMCP:
         return urlunsplit((base.scheme, host, '/ui/', '', path))
 
     def create_conversation_song(self, session_id: str, draft_revision: int,
-                                 share_preview: bool = False, share_lounge: bool = False) -> dict:
+                                 share_preview: bool = False, share_lounge: bool = False, count: int | None = None,
+                                 duration_seconds: int | None = None, time_signature: str | None = None,
+                                 generation_mode: str | None = None) -> dict:
         """Generate the saved current draft ONLY when the user requests creating audio. Costs normal song credits.
         Read and present the draft first; supply its exact draft_revision. Repeating returns the same job.
         Ask for share_preview only when the user wants a one-hour anonymous listening link.
         share_lounge is separate opt-in publication to signed-in members; requires artist ownership and jacket.
-        Show job_url immediately; read_conversation_song returns preview_url once ready. Never regenerate to poll."""
+        count is 1 to 3 versions for every song. Omit it to keep the saved count; pass 1 to override it.
+        Collection drafts generate all distinct songs as one album/playlist.
+        Optional duration_seconds (60-300), time_signature (2/3/4/6) and generation_mode use the current offered choice ID.
+        Omit them to keep the saved draft or server defaults. Too-short duration is raised to fit lyrics; overlong lyrics fail.
+        For collections or count>1 keep both sharing flags false; share from individual track pages afterwards.
+        Show collection_url/job_urls immediately; read_conversation_song reads all results in one call. Never regenerate to poll."""
         result = self.tools._call('POST', self.path(session_id) + '/generate', {'draft_revision': draft_revision,
-                                  'share_preview': share_preview, 'share_lounge': share_lounge})
-        return {**result, 'job_url': self.url('/jobs/' + quote(result['job_id'], safe=''))}
+                                  'share_preview': share_preview, 'share_lounge': share_lounge, **({'count': count} if count is not None else {}),
+                                  **({'duration_seconds': duration_seconds} if duration_seconds is not None else {}),
+                                  **({'time_signature': time_signature} if time_signature is not None else {}),
+                                  **({'generation_mode': generation_mode} if generation_mode is not None else {})})
+        result['job_url'] = self.url('/jobs/' + quote(result['job_id'], safe=''))
+        if result.get('job_ids'):
+            result['job_urls'] = [self.url('/jobs/' + quote(identity, safe='')) for identity in result['job_ids']]
+        if result.get('collection'):
+            result['collection_url'] = self.url(result['collection']['path'])
+        return result
 
     def read_conversation_song(self, session_id: str, wait_seconds: int = 0) -> dict:
         """Read completion/share status with no publication or model call. Optionally wait up to 45 seconds.
@@ -93,6 +108,13 @@ class ArtistMCP:
             self.tools.sleep(min(2, remaining))
         if result.get('job_path'):
             result['job_url'] = self.url(result['job_path'])
+        for job in result.get('jobs', []):
+            job['job_url'] = self.url(job['job_path'])
+            for candidate in job.get('candidates', []):
+                if candidate.get('path'):
+                    candidate['track_url'] = self.url(candidate['path'])
+        if result.get('collection'):
+            result['collection_url'] = self.url(result['collection']['path'])
         preview = result.get('preview', {})
         if preview.get('active') and preview.get('token'):
             result['preview_url'] = self.url('/s/' + quote(preview['token'], safe=''))

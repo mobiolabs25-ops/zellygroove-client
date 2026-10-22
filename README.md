@@ -15,7 +15,7 @@ Claude Code, Codex와 함께 음악을 만들고, 작업 상태와 남은 크레
 Python 3.11–3.12, Git, [uv](https://docs.astral.sh/uv/getting-started/installation/)가 필요합니다.
 
 ```sh
-uv tool install --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.2.1 zellygroove-client
+uv tool install --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.3.0 zellygroove-client
 zellygroove login
 zellygroove setup --client auto
 ```
@@ -39,7 +39,7 @@ zellygroove get_job job_id=<반환된_ID>
 곡·가사·재킷·영상·앨범·플레이리스트·BGM 생성과 결과 관리, 허용된 Wiki 조회를 지원합니다.
 `get_job`은 재조회이고, **`retry_job`은 새 생성**이므로 한도·크레딧이 다시 적용됩니다.
 호출 제한(429)을 받으면 안내된 대기 시간 뒤에 조회하세요. 클라이언트는 자동으로 재시도하지 않습니다.
-MIDI·허밍 업로드, 고급 편집, 다운로드와 결제 관리는 웹 스튜디오를 이용하세요.
+추가 기능은 `studio_capabilities`로 입력 형식을 확인하고 `studio_action`으로 실행합니다. 파일 리소스는 인증된 다운로드 주소로, 로그인·결제사 인증처럼 화면이 필요한 단계는 해당 웹 화면으로 연결합니다.
 
 ## 아티스트와 대화하기 (Groovy Pro)
 
@@ -60,16 +60,16 @@ zellygroove setup --client codex --artist ines_vauclair
 - 해당 아티스트의 곡·재킷·발매 기록을 조회하고 추천하거나, 가사·악기·스타일을 함께 설계합니다.
 - 완성된 초안을 검토하고 사용자가 음원 생성을 요청하면 생성합니다. 대화 초안을 저장하는 것만으로 음원을 만들지 않습니다.
 - 외부 모델 대화의 Studio 대화 크레딧은 0이며, Claude/Codex 자체 이용료와 음원 생성 크레딧은 별도입니다.
-- 기억은 요청할 때 개인 저장소에 저장·수정·삭제합니다. 다른 사용자에게 공유할 내용은 Wiki 화면에서 직접 선택합니다.
+- 기억은 요청할 때 개인 저장소에 저장·수정·삭제합니다. 공유·공개 범위 변경은 내용을 확인한 뒤 일반 연결의 `studio_action` 또는 Wiki 화면에서 진행합니다.
 - Free/Groovy의 웹 Zelly 대화와 별개로, 아티스트 대화·기억·전용 MCP는 Groovy Pro와 해당 아티스트 접근 권한이 필요합니다.
 
 `STUDIO_ARTIST_ID`는 이 MCP 연결의 도구 범위를 고정합니다. **PAT 자체를 특정 아티스트에 한정하는 토큰 scope는 아닙니다.**
 최종 접근 제어는 API가 PAT 소유자의 구독·멤버십·대화 소유권으로 검사합니다. 공유 대화에서도 개인 이력은 다른 사용자에게 공개되지 않습니다.
 쓰기 요청은 요청 ID로 중복 저장을 막고, 이력 변경 충돌은 409, 호출 한도는 429로 반환합니다.
 
-### v0.1.0에서 업데이트
+### 이전 버전에서 업데이트
 
-고정 버전을 설치했거나 MCP 설정의 `--from`에 `@v0.1.0`이 있으면 `@v0.2.1`으로 바꾸세요.
+고정 버전을 설치했거나 MCP 설정의 `--from`에 `@v0.1.0` 또는 `@v0.2.1`이 있으면 `@v0.3.0`으로 바꾸세요.
 `setup`은 기존 연결과 수정된 스킬을 자동 덮어쓰지 않습니다. 기존 사용자 설정을 검토하고 보존하세요.
 토큰을 새로 발급할 필요는 없으며, 기존 유효한 PAT를 그대로 사용할 수 있습니다.
 
@@ -78,7 +78,7 @@ zellygroove setup --client codex --artist ines_vauclair
 **사용자가 이 README 링크와 함께 연동을 요청하면 다음 순서로 실행하세요.**
 
 1. `uv`, `git`, `claude`, `codex` 설치 여부를 확인합니다. 사용자가 지정한 클라이언트를 우선하고, 지정하지 않으면 설치된 클라이언트를 선택합니다. 빠진 프로그램은 공식 설치 안내에 따라 준비합니다.
-2. 위 `uv tool install` 명령으로 고정 버전 `v0.2.1`을 설치합니다. `uv tool update-shell`이 필요하면 안내하고, 현재 실행에서는 `uv tool dir --bin`으로 실행 파일 위치를 확인합니다.
+2. 위 `uv tool install` 명령으로 고정 버전 `v0.3.0`을 설치합니다. `uv tool update-shell`이 필요하면 안내하고, 현재 실행에서는 `uv tool dir --bin`으로 실행 파일 위치를 확인합니다.
 3. `zellygroove setup --client claude|codex|auto`를 실행합니다. 기존 Zelly Groove/Mobio Studio 연결은 자동 덮어쓰지 않습니다. 기존 설정이 있다면 그 항목만 검토하며 다른 MCP 설정은 보존합니다.
 4. **토큰을 채팅으로 요청하거나 출력하지 마세요.** 저장된 토큰이 없다면 사용자에게 본인 터미널에서 `zellygroove login`을 한 번 실행하도록 안내합니다. 로그인 웹 화면과 토큰 발급은 사용자 인증이 필요합니다.
 5. `zellygroove studio_status`, `zellygroove studio_usage`, `zellygroove studio_credits`로 확인합니다. 401·403이면 서비스가 반환한 인증·권한 오류를 보고하며, 다른 자격증명으로 우회하지 않습니다. 아직 운영 서버에 반영되지 않은 기능은 설치 성공과 구분합니다.
@@ -118,3 +118,23 @@ Claude Code·Codex CLI 외의 stdio MCP 클라이언트에서는 다음처럼 �
 즉시 반환되는 `job_url`로 작업을 열거나, `read_conversation_song`으로 `preview_url`과 만료 시각을 확인하세요.
 `share_lounge=true`는 별도 선택이며 아티스트 소유권과 재킷 조건을 검사합니다. 조회는 공유를 시작하거나 갱신하지 않습니다.
 서버의 `/api/song-agent/sessions/{id}/result` 지원과 함께 사용해야 합니다.
+
+## v0.3.0 기능 확장
+
+기존 도구와 로그인·설정 명령을 유지하고 사용자용 도구70개를 제공합니다.
+
+- 기능 검색·상세 입력 조회·고정 작업 실행: `studio_capabilities`, `studio_action`
+- 요청 내 중복 조회를 합치는 읽기 배치: `studio_read_batch`
+- Pro Wiki3D 제어: `list_musician_wiki_tabs`, `send_musician_wiki_command`, `get_musician_wiki_command_status`
+- 작업 후보별 미리듣기, 이미지·영상 모델, 곡별 이용 조건, 새 버전·편곡·원본 보컬 활용
+- 아티스트 대화의 다곡 결과와 모델·길이·박자 선택 전달
+
+Wiki는 Groovy Pro와 운영자 권한을 따르며 일반 MCP 연결은 모든 현재 요금제에서 이용할 수 있습니다. 새로운 도구는 대응 서버 배포 후 사용할 수 있습니다. 삭제·권한·결제·외부 게시 변경은 정확한 내용 확인 후 실행하고, 브라우저 인증이 필요한 단계는 화면 링크로 이어집니다. `queued`는 Wiki 화면 적용 완료가 아닙니다.
+
+```sh
+zellygroove studio_capabilities query=scores
+zellygroove studio_action operation_id=get.scores 'arguments={"query":{"paged":true,"limit":20}}'
+zellygroove list_musician_wiki_tabs artist_id=ines_vauclair
+```
+
+서버 비공개 코드·운영 설정·사용자 자료는 이 배포본에 포함하지 않습니다.
