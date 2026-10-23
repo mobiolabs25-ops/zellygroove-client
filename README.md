@@ -15,7 +15,7 @@ Claude Code, Codex와 함께 음악을 만들고, 작업 상태와 남은 크레
 Python 3.11–3.12, Git, [uv](https://docs.astral.sh/uv/getting-started/installation/)가 필요합니다.
 
 ```sh
-uv tool install --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.3.0 zellygroove-client
+uv tool install --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.3.1 zellygroove-client
 zellygroove login
 zellygroove setup --client auto
 ```
@@ -43,6 +43,10 @@ zellygroove get_job job_id=<반환된_ID>
 
 ## 아티스트와 대화하기 (Groovy Pro)
 
+기능 조회를 지원하는 기존 일반 MCP 연결(v0.3.0 이상)에서도 아티스트와 대화할 수 있습니다.
+`studio_capabilities`로 대화 기능을 확인하고 `studio_action`으로 외부 모델 세션을 열면 됩니다.
+아래 전용 연결은 아티스트와 도구 범위를 고정하는 선택 사항입니다. 두 방식 모두 Groovy Pro와 해당 아티스트 접근 권한이 필요합니다.
+
 공개 HTTPS API에 **본인 PAT**로 연결합니다. SSH 터널이나 서버 운영 계정은 필요하지 않습니다.
 `list_artists`에서 접근 가능한 아티스트 ID를 확인하고 전용 연결을 등록하세요.
 
@@ -57,7 +61,7 @@ zellygroove setup --client codex --artist ines_vauclair
 
 - Claude/Codex의 현재 대화 모델이 페르소나와 이력을 읽고 답합니다. 로컬 모델을 별도로 내려받는 기능은 아닙니다.
 - 대화는 `Inès >`처럼 표시하고 실제 사용자 메시지와 답변을 서버의 개인 이력에 저장합니다. 웹에서도 이어볼 수 있습니다.
-- 해당 아티스트의 곡·재킷·발매 기록을 조회하고 추천하거나, 가사·악기·스타일을 함께 설계합니다.
+- 현재 대화 컨텍스트가 허용하는 도구로 해당 아티스트의 실제 곡을 조회하고 추천하거나, 가사·악기·스타일을 함께 설계합니다.
 - 완성된 초안을 검토하고 사용자가 음원 생성을 요청하면 생성합니다. 대화 초안을 저장하는 것만으로 음원을 만들지 않습니다.
 - 외부 모델 대화의 Studio 대화 크레딧은 0이며, Claude/Codex 자체 이용료와 음원 생성 크레딧은 별도입니다.
 - 기억은 요청할 때 개인 저장소에 저장·수정·삭제합니다. 공유·공개 범위 변경은 내용을 확인한 뒤 일반 연결의 `studio_action` 또는 Wiki 화면에서 진행합니다.
@@ -69,20 +73,44 @@ zellygroove setup --client codex --artist ines_vauclair
 
 ### 이전 버전에서 업데이트
 
-고정 버전을 설치했거나 MCP 설정의 `--from`에 `@v0.1.0` 또는 `@v0.2.1`이 있으면 `@v0.3.0`으로 바꾸세요.
-`setup`은 기존 연결과 수정된 스킬을 자동 덮어쓰지 않습니다. 기존 사용자 설정을 검토하고 보존하세요.
+```sh
+uv tool install --force --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.3.1 zellygroove-client
+```
+
+CLI 설치와 MCP 등록은 별개입니다. 기존 일반 연결과 아티스트 전용 연결의 `--from`에 이전 버전이
+고정돼 있으면 해당 Zelly Groove 항목만 `@v0.3.1`로 갱신하세요. 다른 MCP 설정과 저장된 토큰 파일은 보존합니다.
+`setup`은 기존 연결을 자동 덮어쓰지 않고, 설치된 스킬 내용이 다르면 중단합니다.
+수정한 스킬을 별도로 보관한 뒤 새 `zellygroove guide`의 아티스트 실행 절차를 반영하세요.
+CLI와 MCP 등록, 스킬을 모두 갱신한 뒤 Claude/Codex를 다시 시작해야 초기 안내와 도구 설명이 다시 로드됩니다.
 토큰을 새로 발급할 필요는 없으며, 기존 유효한 PAT를 그대로 사용할 수 있습니다.
+
+### Claude/Codex가 대화를 진행하는 방식
+
+아티스트 대화는 **문맥 읽기 → 필요한 자료 조회 → 결과 확인 → 답변 작성 → 저장 확인** 순서로 진행합니다.
+각 사용자 턴에서 서버의 `read_artist_conversation`을 읽으며, 서버가 제공하는 `execution_guide`와
+현재 도구·답변 스키마를 따릅니다. 추가 조회는 기본 최대 두 묶음(묶음마다 최대 세 도구)으로 안내합니다.
+이는 클라이언트 행동 지침이며 서버가 모델 호출 횟수를 강제한다는 뜻은 아닙니다.
+
+- “네 곡 중 몇 곡 추천해 줘”: 연결한 아티스트의 실제 곡을 확인하고 그 ID·제목만 추천합니다.
+- “하나 들려줘”: 직전 추천에서 한 곡을 선택합니다. 재생 링크가 제공되면 안내하고, ID·제목만 있으면
+  해당 곡을 웹 스튜디오에서 열도록 안내합니다. 재생을 확인하지 않고 “재생 중”이라고 말하지 않습니다.
+- “그래”: 직전의 구체적인 제안을 이어갑니다. 기존 곡 듣기를 새 음원 생성으로 바꾸지 않습니다.
+- 가사·초안: 사용자 원문을 보존하고 저장 결과를 확인합니다. 음원 생성과 기억 저장은 사용자 요청이 있을 때 진행합니다.
+
+상세 실행 절차와 재전송·충돌·권한·검증 오류 대응은 [아티스트 대화 가이드](docs/artist-conversation-guide.md)를 참고하세요.
+현재 안내에는 서버의 자동 1회 보완 루프 구현이 포함되지 않습니다. 이 정책은 서버가 명시적으로 제공할 때만 적용합니다.
 
 ## AI 에이전트용 연결 절차
 
 **사용자가 이 README 링크와 함께 연동을 요청하면 다음 순서로 실행하세요.**
 
 1. `uv`, `git`, `claude`, `codex` 설치 여부를 확인합니다. 사용자가 지정한 클라이언트를 우선하고, 지정하지 않으면 설치된 클라이언트를 선택합니다. 빠진 프로그램은 공식 설치 안내에 따라 준비합니다.
-2. 위 `uv tool install` 명령으로 고정 버전 `v0.3.0`을 설치합니다. `uv tool update-shell`이 필요하면 안내하고, 현재 실행에서는 `uv tool dir --bin`으로 실행 파일 위치를 확인합니다.
+2. 위 `uv tool install` 명령으로 고정 버전 `v0.3.1`을 설치합니다. `uv tool update-shell`이 필요하면 안내하고, 현재 실행에서는 `uv tool dir --bin`으로 실행 파일 위치를 확인합니다.
 3. `zellygroove setup --client claude|codex|auto`를 실행합니다. 기존 Zelly Groove/Mobio Studio 연결은 자동 덮어쓰지 않습니다. 기존 설정이 있다면 그 항목만 검토하며 다른 MCP 설정은 보존합니다.
 4. **토큰을 채팅으로 요청하거나 출력하지 마세요.** 저장된 토큰이 없다면 사용자에게 본인 터미널에서 `zellygroove login`을 한 번 실행하도록 안내합니다. 로그인 웹 화면과 토큰 발급은 사용자 인증이 필요합니다.
-5. `zellygroove studio_status`, `zellygroove studio_usage`, `zellygroove studio_credits`로 확인합니다. 401·403이면 서비스가 반환한 인증·권한 오류를 보고하며, 다른 자격증명으로 우회하지 않습니다. 아직 운영 서버에 반영되지 않은 기능은 설치 성공과 구분합니다.
-6. MCP 등록과 API 연결을 각각 보고하고 에이전트 재시작을 안내합니다. 연결 시험만을 위해 곡을 생성하지 마세요. 재시작 후 MCP의 `studio_credits`를 호출하면 최종 확인할 수 있습니다.
+5. 일반 연결에서는 `zellygroove studio_status`, `zellygroove studio_usage`, `zellygroove studio_credits`로 확인합니다. 401·403이면 서비스가 반환한 인증·권한 오류를 보고하며, 다른 자격증명으로 우회하지 않습니다. 아직 운영 서버에 반영되지 않은 기능은 설치 성공과 구분합니다.
+6. 아티스트 연결은 일반 도구가 노출되지 않습니다. 사용자 요청에 따라 `open_artist_conversation`과 `read_artist_conversation`으로 페르소나·현재 허용 도구를 확인하세요. 일반 연결 시험을 아티스트 연결에 요구하지 마세요.
+7. MCP 등록과 API 연결을 각각 보고하고 에이전트 재시작을 안내합니다. 연결 시험만을 위해 곡을 생성하지 마세요. 재시작 후 일반 연결의 `studio_credits` 또는 아티스트 연결의 `read_artist_conversation`으로 최종 확인할 수 있습니다.
 
 Claude Code·Codex CLI 외의 stdio MCP 클라이언트에서는 다음처럼 등록합니다. 실행 파일과 토큰 파일의 절대 경로는 사용자 환경에 맞게 바꾸세요.
 
