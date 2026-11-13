@@ -8,7 +8,7 @@ from .auth import service_url, token_path
 from .mcp_server import StudioError
 from .words import say
 
-SOURCE = "git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.3.1"
+SOURCE = "git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.3.2"
 SERVER_NAME = "zellygroove"
 
 

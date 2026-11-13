@@ -15,7 +15,7 @@ Claude Code, Codex와 함께 음악을 만들고, 작업 상태와 남은 크레
 Python 3.11–3.12, Git, [uv](https://docs.astral.sh/uv/getting-started/installation/)가 필요합니다.
 
 ```sh
-uv tool install --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.3.1 zellygroove-client
+uv tool install --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.3.2 zellygroove-client
 zellygroove login
 zellygroove setup --client auto
 ```
@@ -74,11 +74,11 @@ zellygroove setup --client codex --artist ines_vauclair
 ### 이전 버전에서 업데이트
 
 ```sh
-uv tool install --force --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.3.1 zellygroove-client
+uv tool install --force --python 3.11 --from git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.3.2 zellygroove-client
 ```
 
 CLI 설치와 MCP 등록은 별개입니다. 기존 일반 연결과 아티스트 전용 연결의 `--from`에 이전 버전이
-고정돼 있으면 해당 Zelly Groove 항목만 `@v0.3.1`로 갱신하세요. 다른 MCP 설정과 저장된 토큰 파일은 보존합니다.
+고정돼 있으면 해당 Zelly Groove 항목만 `@v0.3.2`로 갱신하세요. 다른 MCP 설정과 저장된 토큰 파일은 보존합니다.
 `setup`은 기존 연결을 자동 덮어쓰지 않고, 설치된 스킬 내용이 다르면 중단합니다.
 수정한 스킬을 별도로 보관한 뒤 새 `zellygroove guide`의 아티스트 실행 절차를 반영하세요.
 CLI와 MCP 등록, 스킬을 모두 갱신한 뒤 Claude/Codex를 다시 시작해야 초기 안내와 도구 설명이 다시 로드됩니다.
@@ -105,7 +105,7 @@ CLI와 MCP 등록, 스킬을 모두 갱신한 뒤 Claude/Codex를 다시 시작�
 **사용자가 이 README 링크와 함께 연동을 요청하면 다음 순서로 실행하세요.**
 
 1. `uv`, `git`, `claude`, `codex` 설치 여부를 확인합니다. 사용자가 지정한 클라이언트를 우선하고, 지정하지 않으면 설치된 클라이언트를 선택합니다. 빠진 프로그램은 공식 설치 안내에 따라 준비합니다.
-2. 위 `uv tool install` 명령으로 고정 버전 `v0.3.1`을 설치합니다. `uv tool update-shell`이 필요하면 안내하고, 현재 실행에서는 `uv tool dir --bin`으로 실행 파일 위치를 확인합니다.
+2. 위 `uv tool install` 명령으로 고정 버전 `v0.3.2`을 설치합니다. `uv tool update-shell`이 필요하면 안내하고, 현재 실행에서는 `uv tool dir --bin`으로 실행 파일 위치를 확인합니다.
 3. `zellygroove setup --client claude|codex|auto`를 실행합니다. 기존 Zelly Groove/Mobio Studio 연결은 자동 덮어쓰지 않습니다. 기존 설정이 있다면 그 항목만 검토하며 다른 MCP 설정은 보존합니다.
 4. **토큰을 채팅으로 요청하거나 출력하지 마세요.** 저장된 토큰이 없다면 사용자에게 본인 터미널에서 `zellygroove login`을 한 번 실행하도록 안내합니다. 로그인 웹 화면과 토큰 발급은 사용자 인증이 필요합니다.
 5. 일반 연결에서는 `zellygroove studio_status`, `zellygroove studio_usage`, `zellygroove studio_credits`로 확인합니다. 401·403이면 서비스가 반환한 인증·권한 오류를 보고하며, 다른 자격증명으로 우회하지 않습니다. 아직 운영 서버에 반영되지 않은 기능은 설치 성공과 구분합니다.
