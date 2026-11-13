@@ -10,6 +10,7 @@ from urllib.parse import quote
 import httpx
 
 from .mcp_operation_paths import resolve_path
+from .words import learn, say
 
 MAX_UPLOAD = 200 * 1024 * 1024
 MAX_JSON = 16 * 1024 * 1024
@@ -23,7 +24,7 @@ class CapabilityClient:
     def discover(self, query='', group='', offset=0, limit=20, operation_id=None):
         if operation_id is not None:
             if not isinstance(operation_id, str) or not re.fullmatch(r'[a-z0-9_.-]{1,200}', operation_id):
-                raise self.error('기능 ID를 확인해 주세요')
+                raise self.error(say('기능 ID를 확인해 주세요', 'Check the operation ID'))
             return self.tools._call('GET', '/api/mcp/capabilities/' + operation_id,
                                     params={'operator_surface': self.operator})
         return self.tools._call('GET', '/api/mcp/capabilities', params={
@@ -31,7 +32,7 @@ class CapabilityClient:
 
     def _request(self, row, arguments):
         if not isinstance(arguments, dict) or set(arguments) - {'path', 'query', 'body', 'upload', 'consent_version', 'melody_options'}:
-            raise self.error('인자는 path, query, body, upload, consent_version, melody_options만 사용할 수 있습니다')
+            raise self.error(say('인자는 path, query, body, upload, consent_version, melody_options만 사용할 수 있습니다', 'Only path, query, body, upload, consent_version and melody_options can be given'))
         try:
             path = resolve_path(row, arguments.get('path'))
         except ValueError as error:
@@ -39,37 +40,37 @@ class CapabilityClient:
         query = arguments.get('query', {})
         if (not isinstance(query, dict) or len(query) > 50 or any(not isinstance(k, str) or len(k) > 100
                 or type(v) not in (str, int, float, bool, type(None)) or isinstance(v, float) and not math.isfinite(v) for k, v in query.items())):
-            raise self.error('조회 인자는 단순한 이름과 값으로 지정해 주세요')
+            raise self.error(say('조회 인자는 단순한 이름과 값으로 지정해 주세요', 'Give query arguments as plain names and values'))
         method = row.get('method')
         if method not in ('GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'):
-            raise self.error('지원하지 않는 기능 메서드입니다')
+            raise self.error(say('지원하지 않는 기능 메서드입니다', 'An operation method that is not supported'))
         if method in ('GET', 'HEAD') and set(arguments) & {'body', 'upload', 'consent_version', 'melody_options'}:
-            raise self.error('조회 요청에 변경 본문이나 파일을 넣을 수 없습니다')
+            raise self.error(say('조회 요청에 변경 본문이나 파일을 넣을 수 없습니다', 'A read cannot carry a body or a file'))
         headers = {'X-Studio-MCP-Operation': row['id']}
         content = None
         if 'upload' in arguments:
             upload = arguments['upload']
             if not row.get('upload') or 'body' in arguments or not isinstance(upload, dict) or set(upload) != {'data_base64', 'content_type'}:
-                raise self.error('이 기능의 파일 입력 형식을 확인해 주세요')
+                raise self.error(say('이 기능의 파일 입력 형식을 확인해 주세요', "Check this operation's file input format"))
             encoded, kind = upload['data_base64'], upload['content_type']
             if not isinstance(encoded, str) or len(encoded) > (MAX_UPLOAD + 2) // 3 * 4 or not isinstance(kind, str) or not re.fullmatch(r'[a-zA-Z0-9.+-]+/[a-zA-Z0-9.+-]+', kind):
-                raise self.error('파일은 200 MiB 이하의 base64와 올바른 content_type이 필요합니다')
+                raise self.error(say('파일은 200 MiB 이하의 base64와 올바른 content_type이 필요합니다', 'A file needs base64 of at most 200 MiB and a valid content_type'))
             try:
                 content = base64.b64decode(encoded, validate=True)
             except (ValueError, UnicodeError):
-                raise self.error('파일의 base64 형식이 올바르지 않습니다') from None
+                raise self.error(say('파일의 base64 형식이 올바르지 않습니다', "The file's base64 is not valid")) from None
             if not content or len(content) > MAX_UPLOAD:
-                raise self.error('파일 크기를 확인해 주세요')
+                raise self.error(say('파일 크기를 확인해 주세요', 'Check the file size'))
             headers['content-type'] = kind
         elif 'body' in arguments:
             if not isinstance(arguments['body'], dict):
-                raise self.error('본문은 JSON 객체여야 합니다')
+                raise self.error(say('본문은 JSON 객체여야 합니다', 'The body must be a JSON object'))
             try:
                 content = json.dumps(arguments['body'], ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode()
             except (ValueError, TypeError, RecursionError):
-                raise self.error('본문을 JSON으로 표현할 수 없습니다') from None
+                raise self.error(say('본문을 JSON으로 표현할 수 없습니다', 'The body cannot be written as JSON')) from None
             if len(content) > MAX_JSON:
-                raise self.error('JSON 본문은 16 MiB까지입니다')
+                raise self.error(say('JSON 본문은 16 MiB까지입니다', 'A JSON body is at most 16 MiB'))
             headers['content-type'] = 'application/json'
         elif method not in ('GET', 'HEAD') and not row.get('upload'):
             # Several existing no-option actions depend on the shared JSON-body
@@ -79,22 +80,24 @@ class CapabilityClient:
         consent = arguments.get('consent_version')
         if consent is not None:
             if not isinstance(consent, str) or not re.fullmatch(r'[A-Za-z0-9_.-]{1,100}', consent):
-                raise self.error('파일 사용 동의 버전을 확인해 주세요')
+                raise self.error(say('파일 사용 동의 버전을 확인해 주세요', 'Check the file-use consent version'))
             headers['X-Score-Upload-Consent'] = consent
         if 'melody_options' in arguments:
             options = arguments['melody_options']
             if row['path'] != '/api/jobs/from-audio' or not isinstance(options, dict) or any(not isinstance(v, str) for v in options.values()):
-                raise self.error('멜로디 기반 노래 설정을 확인해 주세요')
+                raise self.error(say('멜로디 기반 노래 설정을 확인해 주세요', 'Check the melody-based song settings'))
             headers['X-Melody-Options'] = quote(json.dumps(options, ensure_ascii=False, separators=(',', ':')))
             if len(headers['X-Melody-Options']) > 16000:
-                raise self.error('멜로디 기반 노래 설정이 너무 깁니다')
+                raise self.error(say('멜로디 기반 노래 설정이 너무 깁니다', 'The melody-based song settings are too long'))
         request = self.client.build_request(method, path, params={k: v for k, v in query.items() if v is not None},
                                             content=content, headers=headers)
         if len(request.url.query) > 8192:
-            raise self.error('조회 인자가 너무 깁니다')
+            raise self.error(say('조회 인자가 너무 깁니다', 'The query arguments are too long'))
         return request
 
     def _result(self, response):
+        if self.client.headers.get('authorization'):
+            learn(response.headers.get('content-language') or 'ko')
         try:
             data = response.json()
         except ValueError:
@@ -103,26 +106,26 @@ class CapabilityClient:
             if response.status_code == 204:
                 return {'ok': True}
             if data is None:
-                raise self.error('JSON 응답이 아닙니다. 파일 조회 기능의 주소를 사용해 주세요')
+                raise self.error(say('JSON 응답이 아닙니다. 파일 조회 기능의 주소를 사용해 주세요', "Not a JSON answer. Use the file operation's address"))
             return data
         detail = data.get('detail') if isinstance(data, dict) else None
         if isinstance(data, dict) and isinstance(data.get('errors'), dict):
             detail = '; '.join(f'{key}: {value}' for key, value in data['errors'].items())
-        message = str(detail or f'스튜디오가 요청을 거절했습니다 ({response.status_code})')
+        message = str(detail or say(f'스튜디오가 요청을 거절했습니다 ({response.status_code})', f'The studio refused the request ({response.status_code})'))
         after = response.headers.get('Retry-After', '')
         if response.status_code == 429 and after.isdigit() and len(after) <= 6:
-            message += f' {after}초 뒤에 다시 조회하세요. 자동 재시도하지 않습니다.'
+            message += say(f' {after}초 뒤에 다시 조회하세요. 자동 재시도하지 않습니다.', f' Check again after {after} seconds. It is not retried automatically.')
         raise self.error(message, status_code=response.status_code)
 
     def _execute(self, row, arguments, confirmation=None):
         if row.get('mode') == 'browser':
             target = row.get('browser_path', '')
             if not isinstance(target, str) or not target.startswith('/') or target.startswith('//'):
-                raise self.error('화면 연결 주소를 확인할 수 없습니다')
+                raise self.error(say('화면 연결 주소를 확인할 수 없습니다', 'The screen address cannot be checked'))
             return {'status': 'browser_required', 'operation_id': row['id'], 'reason': row['reason'],
                     'url': str(self.client.base_url).rstrip('/') + '/ui/#' + target}
         if row.get('mode') not in ('direct', 'resource'):
-            raise self.error('이 기능은 MCP 실행 대상이 아닙니다')
+            raise self.error(say('이 기능은 MCP 실행 대상이 아닙니다', 'This operation cannot be run over MCP'))
         request = self._request(row, arguments)
         if request.method not in ('GET', 'HEAD'):
             if confirmation is None:
@@ -138,9 +141,9 @@ class CapabilityClient:
                         summary['upload'] = {'content_type': summary['upload']['content_type'], 'bytes': len(request.content)}
                     return {'status': 'confirmation_required', 'operation_id': row['id'], 'title': row['title'],
                             'arguments': summary, **receipt,
-                            'instruction': '사용자가 이 변경을 확인한 후 같은 인자와 confirmation으로 한 번 실행하세요.'}
+                            'instruction': say('사용자가 이 변경을 확인한 후 같은 인자와 confirmation으로 한 번 실행하세요.', 'After the user confirms this change, run it once with the same arguments and the confirmation.')}
             if not isinstance(confirmation, str) or not re.fullmatch('[a-f0-9]{64}', confirmation):
-                raise self.error('변경 확인 값을 확인해 주세요')
+                raise self.error(say('변경 확인 값을 확인해 주세요', 'Check the confirmation value'))
             request.headers['X-Studio-MCP-Confirmation'] = confirmation
         try:
             if row['mode'] == 'resource':
@@ -150,35 +153,35 @@ class CapabilityClient:
                         response.read()
                         return self._result(response)
                     return {'url': str(request.url), 'authentication_required': True,
-                            'operation_id': row['id'], 'note': '같은 계정의 인증으로 열어야 합니다. URL에 토큰을 붙이지 마세요.'}
+                            'operation_id': row['id'], 'note': say('같은 계정의 인증으로 열어야 합니다. URL에 토큰을 붙이지 마세요.', 'Open it signed in to the same account. Never put a token in the URL.')}
                 finally:
                     response.close()
             response = self.client.send(request, follow_redirects=False)
             return self._result(response)
         except httpx.TransportError as error:
-            raise self.error('스튜디오 연결에 실패했습니다. 변경 결과가 불명확하면 상태부터 조회하세요. 자동 재시도하지 않습니다.') from error
+            raise self.error(say('스튜디오 연결에 실패했습니다. 변경 결과가 불명확하면 상태부터 조회하세요. 자동 재시도하지 않습니다.', 'Could not reach the studio. If the result of a change is unclear, check its status first. It is not retried automatically.')) from error
 
     def action(self, operation_id, arguments=None, confirmation=None):
         row = self.discover(operation_id=operation_id)
         if row.get('id') != operation_id:
-            raise self.error('기능 응답이 요청과 일치하지 않습니다')
+            raise self.error(say('기능 응답이 요청과 일치하지 않습니다', 'The answer does not match the request'))
         return self._execute(row, {} if arguments is None else arguments, confirmation)
 
     def batch(self, calls):
         if not isinstance(calls, list) or not 1 <= len(calls) <= 8:
-            raise self.error('조회 배치는 1~8개입니다')
+            raise self.error(say('조회 배치는 1~8개입니다', 'A read batch has 1 to 8 items'))
         rows, checked = {}, []
         for call in calls:
             if not isinstance(call, dict) or set(call) - {'operation_id', 'arguments'} or 'operation_id' not in call:
-                raise self.error('배치 항목의 형식을 확인해 주세요')
+                raise self.error(say('배치 항목의 형식을 확인해 주세요', 'Check the format of the batch items'))
             identity, arguments = call['operation_id'], call.get('arguments', {})
             if not isinstance(identity, str):
-                raise self.error('기능 ID를 확인해 주세요')
+                raise self.error(say('기능 ID를 확인해 주세요', 'Check the operation ID'))
             if identity not in rows:
                 rows[identity] = self.discover(operation_id=identity)
             row = rows[identity]
             if row.get('id') != identity or row.get('method') != 'GET' or row.get('mode') != 'direct':
-                raise self.error('배치는 JSON 조회 기능만 사용할 수 있습니다')
+                raise self.error(say('배치는 JSON 조회 기능만 사용할 수 있습니다', 'A batch can use only JSON read operations'))
             self._request(row, arguments)  # Validate the whole batch before executing any read.
             checked.append((row, arguments))
         cache, results = {}, []

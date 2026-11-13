@@ -28,6 +28,7 @@ WIKI_METHODS = {'list_musician_wiki_tabs': 'list_tabs', 'send_musician_wiki_comm
                 'get_musician_wiki_command_status': 'status'}
 
 from importlib.resources import files
+from .words import say
 
 GUIDE = files("zellygroove_client").joinpath("SKILL.md").read_text(encoding="utf-8")
 
@@ -35,11 +36,11 @@ GUIDE = files("zellygroove_client").joinpath("SKILL.md").read_text(encoding="utf
 def install_skill(agent: str, home: Path | None = None) -> Path:
     """Write the skill where this agent looks for a person's skills. Returns the file written."""
     if agent not in SKILL_HOMES:
-        raise StudioError(f"claude 또는 codex 여야 합니다: {agent!r}")
+        raise StudioError(say(f"claude 또는 codex 여야 합니다: {agent!r}", f"Must be claude or codex: {agent!r}"))
     path = (home or Path.home()) / SKILL_HOMES[agent] / SKILL_NAME / "SKILL.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and path.read_text(encoding="utf-8") != GUIDE:
-        raise StudioError(f"기존 스킬 내용이 다릅니다. 덮어쓰기 전에 직접 검토하세요: {path}")
+        raise StudioError(say(f"기존 스킬 내용이 다릅니다. 덮어쓰기 전에 직접 검토하세요: {path}", f"The installed skill differs. Review it yourself before overwriting: {path}"))
     path.write_text(GUIDE, encoding="utf-8")
     return path
 
@@ -76,13 +77,13 @@ def run(argv: list[str], tools: StudioTools, out=None, home: Path | None = None)
             print(install_skill(rest[0] if rest else "", home), file=out)
             return 0
         if name not in listed:
-            raise StudioError(f"없는 도구입니다: {name}. `zellygroove` 로 목록을 보세요")
+            raise StudioError(say(f"없는 도구입니다: {name}. `zellygroove` 로 목록을 보세요", f"No such tool: {name}. Run `zellygroove` for the list"))
         if any("=" not in word for word in rest):
-            raise StudioError("값은 key=value 로 적습니다. 예: zellygroove plan_playlist theme=\"rain\" count=3")
+            raise StudioError(say("값은 key=value 로 적습니다. 예: zellygroove plan_playlist theme=\"rain\" count=3", "Write values as key=value. Example: zellygroove plan_playlist theme=\"rain\" count=3"))
         asked = {key: _value(value) for key, value in (word.split("=", 1) for word in rest)}
         unknown = set(asked) - set(listed[name].input_schema.get("properties") or {})
         if unknown:
-            raise StudioError(f"{name} 에 없는 항목입니다: {', '.join(sorted(unknown))}")
+            raise StudioError(say(f"{name} 에 없는 항목입니다: {', '.join(sorted(unknown))}", f"Not an input of {name}: {', '.join(sorted(unknown))}"))
         if name in CAPABILITY_METHODS:
             from .mcp_actions_client import CapabilityClient
             answer = getattr(CapabilityClient(tools, operator=False), CAPABILITY_METHODS[name])(**asked)

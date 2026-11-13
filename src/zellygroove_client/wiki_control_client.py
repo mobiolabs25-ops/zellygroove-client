@@ -5,6 +5,7 @@ fixed local API paths; a queued response is returned as queued, never as success
 """
 import re
 from urllib.parse import quote
+from .words import say
 
 ARTIST_ID = re.compile(r"^[A-Za-z0-9_-]{1,160}$")
 COMMAND_ID = re.compile(r"^[A-Za-z0-9_-]{8,100}$")
@@ -18,13 +19,13 @@ class WikiControlClient:
     @staticmethod
     def _artist(artist_id):
         if not isinstance(artist_id, str) or not ARTIST_ID.fullmatch(artist_id):
-            raise ValueError("올바르지 않은 아티스트 ID입니다")
+            raise ValueError(say("올바르지 않은 아티스트 ID입니다", 'Not a valid artist ID'))
         return quote(artist_id, safe="")
 
     @staticmethod
     def _id(value):
         if not isinstance(value, str) or not COMMAND_ID.fullmatch(value):
-            raise ValueError("올바르지 않은 명령 또는 탭 ID입니다")
+            raise ValueError(say("올바르지 않은 명령 또는 탭 ID입니다", 'Not a valid command or tab ID'))
         return value
 
     def list_tabs(self, artist_id):
@@ -34,7 +35,7 @@ class WikiControlClient:
     def send(self, artist_id, command, tab_id=None, command_id=None):
         self._artist(artist_id)
         if not isinstance(command, dict):
-            raise ValueError("Wiki 명령은 객체여야 합니다")
+            raise ValueError(say("Wiki 명령은 객체여야 합니다", 'A Wiki command must be an object'))
         body = {"artist_id": artist_id, "command": command}
         if tab_id is not None:
             body["tab_id"] = self._id(tab_id)

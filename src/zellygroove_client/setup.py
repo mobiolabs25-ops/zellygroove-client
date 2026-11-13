@@ -6,6 +6,7 @@ import subprocess
 
 from .auth import service_url, token_path
 from .mcp_server import StudioError
+from .words import say
 
 SOURCE = "git+https://github.com/mobiolabs25-ops/zellygroove-client@v0.3.1"
 SERVER_NAME = "zellygroove"
@@ -18,15 +19,15 @@ def setup(argv: list[str]) -> int:
     options = parser.parse_args(argv)
     selected, artist_id = options.client, options.artist
     if artist_id is not None and not re.fullmatch(r"[A-Za-z0-9_-]{1,160}", artist_id):
-        raise StudioError("올바른 아티스트 ID가 필요합니다.")
+        raise StudioError(say("올바른 아티스트 ID가 필요합니다.", "A valid artist ID is needed."))
     server_name = f"{SERVER_NAME}_{artist_id}" if artist_id else SERVER_NAME
     clients = [name for name in ("claude", "codex") if shutil.which(name)] if selected == "auto" else (
         ["claude", "codex"] if selected == "both" else [selected])
     if not clients:
-        raise StudioError("Claude Code 또는 Codex CLI를 먼저 설치하세요. Desktop 설정은 README를 참고하세요.")
+        raise StudioError(say("Claude Code 또는 Codex CLI를 먼저 설치하세요. Desktop 설정은 README를 참고하세요.", "Install Claude Code or the Codex CLI first. For the desktop apps, see the README."))
     uvx = shutil.which("uvx")
     if not uvx or any(not shutil.which(name) for name in clients):
-        raise StudioError("uvx와 선택한 Claude Code/Codex CLI가 PATH에 있어야 합니다.")
+        raise StudioError(say("uvx와 선택한 Claude Code/Codex CLI가 PATH에 있어야 합니다.", "uvx and the chosen Claude Code/Codex CLI must be on PATH."))
     from .connect import install_skill
     for name in clients:
         executable = shutil.which(name)
@@ -35,7 +36,7 @@ def setup(argv: list[str]) -> int:
         existing = next((alias for alias in aliases
                          if subprocess.run([executable, "mcp", "get", alias], capture_output=True, timeout=30).returncode == 0), None)
         if existing:
-            print(f"{name}: 기존 {existing} 연결을 유지합니다. 변경이 필요하면 해당 항목을 검토하세요.")
+            print(say(f"{name}: 기존 {existing} 연결을 유지합니다. 변경이 필요하면 해당 항목을 검토하세요.", f"{name}: keeping the existing {existing} connection. Review it if it needs to change."))
         else:
             env_flag = "-e" if name == "claude" else "--env"
             command = [executable, "mcp", "add"]
@@ -48,9 +49,9 @@ def setup(argv: list[str]) -> int:
             command += ["--", uvx, "--python", "3.11", "--from", SOURCE, "zellygroove-mcp"]
             result = subprocess.run(command, capture_output=True, timeout=60)
             if result.returncode:
-                raise StudioError(f"{name} MCP 등록에 실패했습니다. 해당 CLI의 mcp add 도움말을 확인하세요.")
-            print(f"{name}: {server_name} MCP를 등록했습니다.")
+                raise StudioError(say(f"{name} MCP 등록에 실패했습니다. 해당 CLI의 mcp add 도움말을 확인하세요.", f"Could not add the MCP server to {name}. See that CLI's mcp add help."))
+            print(say(f"{name}: {server_name} MCP를 등록했습니다.", f"{name}: added the {server_name} MCP server."))
         installed = install_skill(name)
-        print(f"{name}: 스킬 설치 완료 ({installed}).")
-    print("토큰이 없다면 본인 터미널에서 zellygroove login을 실행한 뒤 에이전트를 다시 시작하세요.")
+        print(say(f"{name}: 스킬 설치 완료 ({installed}).", f"{name}: skill installed ({installed})."))
+    print(say("토큰이 없다면 본인 터미널에서 zellygroove login을 실행한 뒤 에이전트를 다시 시작하세요.", "Without a token, run zellygroove login in your own terminal, then restart the agent."))
     return 0

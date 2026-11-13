@@ -7,23 +7,24 @@ from uuid import UUID
 from mcp.server.mcpserver import MCPServer
 
 from .mcp_server import StudioError
+from .words import say
 
 
 class ArtistMCP:
     def __init__(self, tools, artist_id):
         if not re.fullmatch(r'[A-Za-z0-9_-]{1,160}', artist_id):
-            raise StudioError('STUDIO_ARTIST_ID를 확인해 주세요')
+            raise StudioError(say('STUDIO_ARTIST_ID를 확인해 주세요', 'Check STUDIO_ARTIST_ID'))
         self.tools, self.artist_id = tools, artist_id
 
     def path(self, session_id):
         try:
             identity = str(UUID(session_id))
         except (ValueError, TypeError, AttributeError):
-            raise StudioError('대화 ID를 확인해 주세요') from None
+            raise StudioError(say('대화 ID를 확인해 주세요', 'Check the conversation ID')) from None
         path = '/api/song-agent/sessions/' + identity
         row = self.tools._call('GET', path)
         if row.get('conversation_artist_id') != self.artist_id:
-            raise StudioError('연결된 아티스트의 대화만 사용할 수 있습니다')
+            raise StudioError(say('연결된 아티스트의 대화만 사용할 수 있습니다', "Only the connected artist's conversations can be used"))
         return path
 
     def open_artist_conversation(self, request_id: str, parent_session_id: str | None = None) -> dict:
@@ -97,7 +98,7 @@ class ArtistMCP:
         Return preview_url only for an active one-hour link requested at creation; never renew expired links.
         A pending result is normal: show job_url, then read again later with the SAME session_id."""
         if type(wait_seconds) is not int or not 0 <= wait_seconds <= 45:
-            raise StudioError('wait_seconds는 0~45초여야 합니다')
+            raise StudioError(say('wait_seconds는 0~45초여야 합니다', 'wait_seconds must be 0 to 45'))
         path = self.path(session_id) + '/result'
         deadline = time.monotonic() + wait_seconds
         while True:
@@ -135,7 +136,7 @@ class ArtistMCP:
 
     def memory_path(self, memory_id):
         if not isinstance(memory_id, str) or not re.fullmatch(r'[a-f0-9]{64}', memory_id):
-            raise StudioError('기억 ID를 확인해 주세요')
+            raise StudioError(say('기억 ID를 확인해 주세요', 'Check the memory ID'))
         return f'/api/song-agent/artists/{self.artist_id}/memories/{memory_id}'
 
     def update_artist_memory(self, memory_id: str, revision: int, title: str, text: str, kind: str) -> dict:
