@@ -7,6 +7,7 @@ from typing import Any, Callable, Literal
 
 import httpx
 from mcp.server.mcpserver import MCPServer
+from .words import learn, say
 
 DEFAULT_URL = "https://zellygroove.com"
 # IDs in URL paths must match the service format; traversal and fragments are rejected.
@@ -44,14 +45,16 @@ class StudioTools:
     @staticmethod
     def _id(value: str) -> str:
         if not isinstance(value, str) or not STUDIO_ID.fullmatch(value):
-            raise StudioError(f"올바르지 않은 id입니다: {str(value)[:40]!r}")
+            raise StudioError(say(f"올바르지 않은 id입니다: {str(value)[:40]!r}", f"Not a valid id: {str(value)[:40]!r}"))
         return value
 
     def _call(self, method: str, path: str, body: dict | None = None, params: dict | None = None) -> Any:
         try:
             response = self.client.request(method, path, json=body, params={k: v for k, v in (params or {}).items() if v is not None})
         except httpx.TransportError as error:
-            raise StudioError("Zelly Groove에 연결할 수 없습니다. 서비스 주소와 네트워크를 확인하세요.") from error
+            raise StudioError(say("Zelly Groove에 연결할 수 없습니다. 서비스 주소와 네트워크를 확인하세요.", "Cannot reach Zelly Groove. Check the service address and your network.")) from error
+        if self.client.headers.get("authorization"):   # her account's language: said for English, nothing for Korean
+            learn(response.headers.get("content-language") or "ko")
         try:
             data = response.json()
         except ValueError:
@@ -62,10 +65,10 @@ class StudioTools:
             raise StudioError("; ".join(f"{field}: {text}" for field, text in data["errors"].items()),
                               status_code=response.status_code)
         detail = data.get("detail") if isinstance(data, dict) else None
-        message = str(detail or f"스튜디오가 요청을 거절했습니다 ({response.status_code})")
+        message = str(detail or say(f"스튜디오가 요청을 거절했습니다 ({response.status_code})", f"The studio refused the request ({response.status_code})"))
         after = response.headers.get("Retry-After", "")
         if response.status_code == 429 and after.isdigit() and len(after) <= 6:
-            message += f" {after}초 뒤에 다시 조회하세요. 자동 재시도하지 않습니다."
+            message += say(f" {after}초 뒤에 다시 조회하세요. 자동 재시도하지 않습니다.", f" Check again after {after} seconds. It is not retried automatically.")
         raise StudioError(message, status_code=response.status_code)
 
     def status(self) -> dict:
@@ -92,23 +95,23 @@ class StudioTools:
 
     def _wiki(self, artist_id: str) -> dict:
         if not isinstance(artist_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,160}", artist_id):
-            raise StudioError("올바르지 않은 아티스트 id입니다")
+            raise StudioError(say("올바르지 않은 아티스트 id입니다", "Not a valid artist id"))
         return self._call("GET", f"/api/musician-wiki/artists/{artist_id}")
 
     def search_musician_wiki(self, artist_id: str, query: str = "", limit: int = 6) -> dict:
         from .wiki_context import search
         if not isinstance(query, str) or len(query) > 300 or type(limit) is not int or not 1 <= limit <= 12:
-            raise StudioError("query는 300자 이하, limit은 1~12 정수여야 합니다")
+            raise StudioError(say("query는 300자 이하, limit은 1~12 정수여야 합니다", "query must be at most 300 characters and limit an integer from 1 to 12"))
         return search(self._wiki(artist_id), query.strip(), limit)
 
     def get_musician_wiki_work(self, artist_id: str, kind: str, work_id: str, include_lyrics: bool = False) -> dict:
         from .wiki_context import detail
         if kind not in ("draft", "track", "album", "image") or not isinstance(work_id, str) or not 1 <= len(work_id) <= 160 or type(include_lyrics) is not bool:
-            raise StudioError("kind, work_id 또는 include_lyrics 값이 올바르지 않습니다")
+            raise StudioError(say("kind, work_id 또는 include_lyrics 값이 올바르지 않습니다", "kind, work_id or include_lyrics is not valid"))
         try:
             return detail(self._wiki(artist_id), kind, work_id, include_lyrics)
         except KeyError:
-            raise StudioError("접근할 수 있는 Wiki에서 작품을 찾을 수 없습니다") from None
+            raise StudioError(say("접근할 수 있는 Wiki에서 작품을 찾을 수 없습니다", "No such work in a Wiki you can open")) from None
 
     def list_tracks(self, artist_id: str | None = None, status: str | None = None) -> list[dict]:
         tracks = self._call("GET", "/api/tracks", params={"artist_id": artist_id, "status": status})
@@ -179,7 +182,7 @@ class StudioTools:
         Advanced stem/vocal modes require server permission; preserve makes a backing for a later human-checked vocal mix.
         Source preservation (0-1), steps and guidance are model-dependent. Returns job_id; do not automatically retry."""
         if rights_confirmed is not True:
-            raise StudioError("원곡·가사·목소리의 편곡 및 외부 전송 권한을 확인해 주세요")
+            raise StudioError(say("원곡·가사·목소리의 편곡 및 외부 전송 권한을 확인해 주세요", 'Confirm the rights to arrange and send out the original song, lyrics and voice'))
         body = {"source_track_id": self._id(source_track_id), "prompt": prompt, "generation_mode": generation_mode,
                 "rights_confirmed": True, "title": title, "count": count}
         for name, value in (("source_preservation", source_preservation), ("steps", steps), ("guidance", guidance),
@@ -200,7 +203,7 @@ class StudioTools:
         Requires server stem-remix permission and the user's listening/sync confirmation. Offset: -30..30 seconds; gains: -24..6 dB. Returns job_id.
         Does not grant new source rights or automatically align music. Use wait_job for the result."""
         if sync_confirmed is not True:
-            raise StudioError("보컬과 반주의 타이밍을 직접 들어 보고 확인해 주세요")
+            raise StudioError(say("보컬과 반주의 타이밍을 직접 들어 보고 확인해 주세요", 'Listen to the vocal and accompaniment timing yourself and confirm it'))
         return self._call("POST", "/api/jobs/vocal-mix", {"source_track_id": self._id(source_track_id),
                           "sync_confirmed": True, "vocal_offset": vocal_offset,
                           "vocal_gain": vocal_gain, "backing_gain": backing_gain})

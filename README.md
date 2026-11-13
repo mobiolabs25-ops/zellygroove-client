@@ -128,6 +128,12 @@ Claude Code·Codex CLI 외의 stdio MCP 클라이언트에서는 다음처럼 �
 }
 ```
 
+### 언어 / Language
+
+서비스의 답과 이 클라이언트의 안내는 계정에 저장한 화면 언어(설정의 한국어·English)를 따릅니다. 로그인 전에는 이 컴퓨터의 언어 설정을 따릅니다. 항상 한 언어로 받으려면 `STUDIO_LANG=ko` 또는 `STUDIO_LANG=en`을 지정하세요.
+
+Answers from the service and this client's messages follow the language saved with your account (Korean or English in Settings); before you sign in, this computer's locale. Set `STUDIO_LANG=en` (or `ko`) to always use one language.
+
 스킬만 설치하려면 `zellygroove install-skill claude` 또는 `zellygroove install-skill codex`를 사용합니다.
 
 ## 권한과 보안
